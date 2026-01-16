@@ -100,6 +100,9 @@
 
         .meal-item { padding: 12px; border-bottom: 1px solid #222; position: relative; }
         .option-card { border-left: 4px solid var(--neon); padding: 15px; background: #161616; border-radius: 8px; margin-bottom: 10px; border: 1px solid #222; }
+        /* ESTILO TARJETA OBJETIVO */
+        .base-card { border-left: 4px solid #888; padding: 15px; background: #0f0f0f; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        
         .meal-macros { font-size: 0.75rem; color: #888; margin-top: 6px; background: #0a0a0a; display: inline-block; padding: 4px 8px; border-radius: 6px; border: 1px solid #222; }
         details { margin-top: 10px; border-top: 1px solid #222; padding-top: 8px; }
         summary { cursor: pointer; font-size: 0.8rem; color: var(--neon); font-weight: bold; list-style: none; outline: none; }
@@ -217,7 +220,7 @@
                     <button class="btn-flavor" id="btnSalty" onclick="app.setFlavor('Salado')">🧂 SALADO</button>
                     <button class="btn-flavor" id="btnSweet" onclick="app.setFlavor('Dulce')">🍰 DULCE</button>
                 </div>
-                <button class="btn btn-primary" onclick="app.runSwap()">GENERAR 5 OPCIONES (GROQ⚡)</button>
+                <button class="btn btn-primary" onclick="app.runSwap()">ANALIZAR Y CLAVAR MACROS (GROQ⚡)</button>
             </div>
             <div id="swapResults"></div>
         </div>
@@ -282,10 +285,10 @@
 </div>
 
 <script>
-    // TU API KEY PERSONAL
+    // TU API KEY
     const GROQ_API_KEY = "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"; 
     
-    // TUS CREDENCIALES FIREBASE
+    // TUS CREDENCIALES
     const firebaseConfig = {
       apiKey: "AIzaSyA03umG7UyjrhkugUr5b_OxcKhpd_iqiu0", 
       authDomain: "vlux-4a423.firebaseapp.com",
@@ -444,13 +447,13 @@
             this.saveData(); this.renderAll(); alert("✅ Perfil Guardado");
         },
 
-        // --- SWAP INTELIGENTE V42 (FIX TOTAL) ---
+        // --- SWAP V44 (MODO CIRUJANO) ---
         runSwap: async function() {
             const base = document.getElementById('swapInput').value;
             const resDiv = document.getElementById('swapResults');
             if(!base) return alert("Escribe una comida base.");
 
-            resDiv.innerHTML = `<div style="text-align:center; padding:30px; color:#888;"><span class="spinner"></span><br>Calculando macros exactos...</div>`;
+            resDiv.innerHTML = `<div style="text-align:center; padding:30px; color:#888;"><span class="spinner"></span><br>1. Analizando tu comida...<br>2. Calculando gramos exactos...</div>`;
 
             let promptContext = "";
             if (this.flavor === "Dulce") {
@@ -459,15 +462,23 @@
                 promptContext = `MODO: SALADO. TIPO: Plato principal. INGREDIENTES: Carnes, Pescados, Arroz, Patata, Huevos, Legumbres.`;
             }
 
-            // PROMPT BLINDADO
+            // PROMPT MATEMÁTICO ESTRICTO
             const prompt = `
-            Actúa como un NUTRICIONISTA MATEMÁTICO. Tu máxima prioridad es la PRECISIÓN NUMÉRICA.
-            1. Analiza los macros y calorías de esta comida base: "${base}".
-            2. Genera 5 opciones de reemplazo que tengan EXACTAMENTE las mismas Calorías y Macros Totales (+/- 10%).
-            3. ${promptContext}
-            4. REGLA DE ORO: Si cambias un alimento magro por uno graso, REDUCE EL PESO para que la grasa cuadre.
-            5. FORMATO JSON OBLIGATORIO: Devuelve un objeto con la clave "recipes". 
-            Ejemplo: { "recipes": [{"name":"...","ingred":"...","recipe":"...","p":0,"c":0,"f":0,"kcal":0}] }
+            Actúa como un NUTRICIONISTA MATEMÁTICO. 
+            1. CALCULA PRIMERO los macros exactos de: "${base}".
+            2. GENERA 5 opciones de reemplazo.
+            
+            IMPORTANTE - REGLAS DE ORO:
+            - Si la comida base tiene X kcal, las opciones DEBEN tener X kcal (Margen error: +/- 20 kcal).
+            - AJUSTA LOS GRAMOS de los ingredientes para lograrlo. Si necesitas poner 43g de arroz, pon 43g. No redondees si eso rompe los macros.
+            - Prioridad: Calorías > Proteína > Carbo/Grasa.
+            - ${promptContext}
+
+            4. FORMATO JSON OBLIGATORIO:
+            {
+               "base": { "name": "Resumen Base", "kcal": 0, "p": 0, "c": 0, "f": 0 },
+               "recipes": [ {"name":"...","ingred":"...","recipe":"...","p":0,"c":0,"f":0,"kcal":0}, ... ]
+            }
             `;
 
             try {
@@ -477,7 +488,8 @@
                     body: JSON.stringify({
                         messages: [{ role: "user", content: prompt }],
                         model: "llama-3.3-70b-versatile",
-                        temperature: 0.5,
+                        // TEMPERATURA BAJA PARA PRECISIÓN MATEMÁTICA
+                        temperature: 0.2,
                         response_format: { type: "json_object" }
                     })
                 });
@@ -490,23 +502,33 @@
                 let parsedData;
                 try {
                     parsedData = JSON.parse(content);
-                } catch(e) { throw new Error("La IA devolvió un formato ilegible."); }
+                } catch(e) { throw new Error("Datos ilegibles."); }
 
-                // --- DETECTOR INTELIGENTE DE LISTAS (EL ARREGLO) ---
-                if (Array.isArray(parsedData)) {
-                    this.tempOptions = parsedData;
-                } else if (parsedData.recipes && Array.isArray(parsedData.recipes)) {
-                    this.tempOptions = parsedData.recipes;
-                } else if (parsedData.options && Array.isArray(parsedData.options)) {
-                    this.tempOptions = parsedData.options;
-                } else {
-                    // Busca cualquier array dentro del objeto
-                    const possibleList = Object.values(parsedData).find(val => Array.isArray(val));
-                    this.tempOptions = possibleList || [parsedData];
-                }
-                
                 resDiv.innerHTML = "";
-                if (!this.tempOptions || this.tempOptions.length === 0) throw new Error("No se encontraron recetas válidas.");
+
+                // 1. RENDERIZAR LA BASE (EL OBJETIVO)
+                if (parsedData.base) {
+                    const b = parsedData.base;
+                    resDiv.innerHTML += `
+                    <div class="base-card">
+                        <strong style="color:#888; font-size:0.8rem; text-transform:uppercase;">OBJETIVO (TU COMIDA BASE)</strong>
+                        <div style="font-size:1.1rem; font-weight:900; color:#fff; margin-top:5px;">${b.name || base}</div>
+                        <div class="meal-macros" style="margin-top:10px; background:#222; border-color:#444; color:#fff;">
+                            🎯 ${b.kcal} kcal | P:${b.p} C:${b.c} G:${b.f}
+                        </div>
+                    </div>
+                    <div style="text-align:center; color:#666; font-size:0.7rem; margin-bottom:15px; letter-spacing:1px;">⬇️ OPCIONES AJUSTADAS AL GRAMO ⬇️</div>
+                    `;
+                }
+
+                // 2. RENDERIZAR OPCIONES
+                let optionsList = [];
+                if (Array.isArray(parsedData)) optionsList = parsedData;
+                else if (parsedData.recipes) optionsList = parsedData.recipes;
+                else if (parsedData.options) optionsList = parsedData.options;
+                
+                this.tempOptions = optionsList;
+                if (!this.tempOptions || this.tempOptions.length === 0) throw new Error("No se generaron recetas.");
 
                 this.tempOptions.forEach((opt, i) => {
                     resDiv.innerHTML += `<div class="option-card">
@@ -634,7 +656,6 @@
         },
         closeModal: function() { document.getElementById('addModal').classList.add('hidden'); },
 
-        // --- SAFE SAVE FUNCTION ---
         confirmAddToMenu: function() {
             try {
                 if (this.selectedOptionIndex === null || !this.tempOptions[this.selectedOptionIndex]) {
