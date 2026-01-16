@@ -282,7 +282,9 @@
 </div>
 
 <script>
-    const GROQ_API_KEY = "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"; 
+    // TU API KEY CONFIGURADA:
+    const GROQ_API_KEY = "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"; 
+    
     const firebaseConfig = {
       apiKey: "AIzaSyA03umG7UyjrhkugUr5b_OxcKhpd_iqiu0", 
       authDomain: "vlux-4a423.firebaseapp.com",
@@ -474,7 +476,7 @@
                     body: JSON.stringify({
                         messages: [{ role: "user", content: prompt }],
                         model: "llama-3.3-70b-versatile",
-                        temperature: 0.5, // Bajamos temp para que sea más lógico y menos "creativo"
+                        temperature: 0.5,
                         response_format: { type: "json_object" }
                     })
                 });
