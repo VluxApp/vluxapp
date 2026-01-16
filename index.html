@@ -100,7 +100,6 @@
 
         .meal-item { padding: 12px; border-bottom: 1px solid #222; position: relative; }
         .option-card { border-left: 4px solid var(--neon); padding: 15px; background: #161616; border-radius: 8px; margin-bottom: 10px; border: 1px solid #222; }
-        /* ESTILO TARJETA OBJETIVO */
         .base-card { border-left: 4px solid #888; padding: 15px; background: #0f0f0f; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         
         .meal-macros { font-size: 0.75rem; color: #888; margin-top: 6px; background: #0a0a0a; display: inline-block; padding: 4px 8px; border-radius: 6px; border: 1px solid #222; }
@@ -185,13 +184,13 @@
                     <div style="grid-column: span 2;">
                         <label>Deporte</label>
                         <select id="pSport">
-                            <option value="Crossfit">Crossfit</option><option value="Hyrox">Hyrox</option><option value="Culturismo">Culturismo</option><option value="Running">Running</option><option value="Futbol">Fútbol</option><option value="Ciclismo">Ciclismo</option><option value="Natacion">Natación</option><option value="Sedentario">Sedentario</option>
+                            <option value="Crossfit">Crossfit</option><option value="Hyrox">Hyrox</option><option value="Culturismo">Culturismo</option><option value="Natacion">Natación</option><option value="Ciclismo">Ciclismo</option><option value="Futbol">Fútbol</option><option value="Running">Running</option><option value="Sedentario">Sedentario</option>
                         </select>
                     </div>
                     <div style="grid-column: span 2;">
                         <label>Actividad</label>
                         <select id="pActivity">
-                            <option value="1.2">Sedentario</option><option value="1.375">Ligero (1-3 días)</option><option value="1.55">Moderado (3-5 días)</option><option value="1.725">Activo (6-7 días)</option><option value="1.9">Atleta PRO</option>
+                            <option value="1.2">Sedentario</option><option value="1.375">Ligero (1-3 días)</option><option value="1.55">Moderado (3-5 días)</option><option value="1.725">Activo (6-7 días)</option><option value="1.9">Atleta PRO (Doble sesión)</option>
                         </select>
                     </div>
                     <div style="grid-column: span 2;">
@@ -417,6 +416,8 @@
                     break;
                 case 'Crossfit': pP=0.20; pC=0.50; pF=0.30; break;
                 case 'Hyrox': pP=0.25; pC=0.50; pF=0.25; break;
+                case 'Ciclismo': pP=0.20; pC=0.60; pF=0.20; break; // Alto en carbos
+                case 'Futbol': pP=0.25; pC=0.50; pF=0.25; break;
                 default: pP=0.20; pC=0.45; pF=0.35;
             }
 
@@ -447,13 +448,16 @@
             this.saveData(); this.renderAll(); alert("✅ Perfil Guardado");
         },
 
-        // --- SWAP V44 (MODO CIRUJANO) ---
+        // --- SWAP V49 (DISCRIMINACIÓN DE NIVEL + DEPORTE) ---
         runSwap: async function() {
             const base = document.getElementById('swapInput').value;
             const resDiv = document.getElementById('swapResults');
+            const sport = this.data.profile.sport || "General";
+            const activityVal = parseFloat(this.data.profile.activity) || 1.55;
+            
             if(!base) return alert("Escribe una comida base.");
 
-            resDiv.innerHTML = `<div style="text-align:center; padding:30px; color:#888;"><span class="spinner"></span><br>1. Analizando tu comida...<br>2. Calculando gramos exactos...</div>`;
+            resDiv.innerHTML = `<div style="text-align:center; padding:30px; color:#888;"><span class="spinner"></span><br>1. Analizando Nivel y Deporte...<br>2. Optimizando...</div>`;
 
             let promptContext = "";
             if (this.flavor === "Dulce") {
@@ -462,19 +466,68 @@
                 promptContext = `MODO: SALADO. TIPO: Plato principal. INGREDIENTES: Carnes, Pescados, Arroz, Patata, Huevos, Legumbres.`;
             }
 
-            // PROMPT MATEMÁTICO ESTRICTO
-            const prompt = `
-            Actúa como un NUTRICIONISTA MATEMÁTICO. 
-            1. CALCULA PRIMERO los macros exactos de: "${base}".
-            2. GENERA 5 opciones de reemplazo.
+            // DETECTOR DE NIVEL (PRO VS AMATEUR)
+            let levelLabel = "";
+            let levelInstruction = "";
             
-            IMPORTANTE - REGLAS DE ORO:
-            - Si la comida base tiene X kcal, las opciones DEBEN tener X kcal (Margen error: +/- 20 kcal).
-            - AJUSTA LOS GRAMOS de los ingredientes para lograrlo. Si necesitas poner 43g de arroz, pon 43g. No redondees si eso rompe los macros.
-            - Prioridad: Calorías > Proteína > Carbo/Grasa.
-            - ${promptContext}
+            if (activityVal >= 1.725) {
+                levelLabel = "ÉLITE/PRO (Alta Exigencia)";
+                levelInstruction = "El usuario entrena a nivel COMPETITIVO. Precisión máxima. Sugiere timing de nutrientes, rápida digestión pre-entreno y recuperación agresiva post-entreno.";
+            } else {
+                levelLabel = "AMATEUR/LIFESTYLE";
+                levelInstruction = "El usuario entrena por SALUD/HOBBY. Prioriza adherencia, recetas ricas y flexibilidad. No hace falta timing milimétrico, sino balance global.";
+            }
 
-            4. FORMATO JSON OBLIGATORIO:
+            // --- INYECCIÓN DE CONOCIMIENTO (BIBLIOTECA VLUX) ---
+            let sportKnowledge = "";
+            
+            if (sport === 'Hyrox') {
+                sportKnowledge = `PROTOCOLO HYROX: Competición >60min. CLAVE: Carbohidratos. Pre-carrera: Bajo en fibra, alta digestibilidad (evitar molestias GI). Intra-entreno: Si es simulación de carrera, sugiere hidratos líquidos. Carga CHO: 6-8g/kg.`;
+            } 
+            else if (sport === 'Futbol') {
+                sportKnowledge = `PROTOCOLO FÚTBOL (AEND): Intermitente alta intensidad. Día de Partido: Carga de glucógeno (1-4g/kg pre-partido). Recuperación (3 R's): Rehidratar, Reponer (Glucógeno), Reparar (Proteína). Ayudas: Cafeína/Creatina son útiles.`;
+            } 
+            else if (sport === 'Culturismo') {
+                sportKnowledge = `PROTOCOLO CULTURISMO (Helms/Amorosi): Pirámide: 1.Balance Energético > 2.Macros > 3.Micros > 4.Timing. Proteína Alta (1.8-2.5g/kg). Volumen: Superávit controlado. Definición: Déficit moderado para mantener masa magra.`;
+            }
+            else if (sport === 'Crossfit') {
+                sportKnowledge = `PROTOCOLO CROSSFIT: Alta intensidad glucolítica. Prioridad: Reponer glucógeno post-WOD (Ratio 3:1 CHO:PRO). Evitar grasas pre-entreno para vaciado gástrico rápido.`;
+            }
+            else if (sport === 'Ciclismo') {
+                sportKnowledge = `PROTOCOLO CICLISMO: Fondo y Resistencia. Pre-ruta: Carbos complejos. Post-ruta: Ratio 4:1 CHO:PRO. Hidratación: Vital SODIO y electrolitos.`;
+            }
+            else if (sport === 'Natacion') {
+                sportKnowledge = `PROTOCOLO NATACIÓN: Digestibilidad fácil (posición horizontal). Recuperación rápida entre sesiones. Hidratación constante (no se nota el sudor).`;
+            }
+            else {
+                sportKnowledge = "Estrategia General Equilibrada: Salud y rendimiento base.";
+            }
+
+            // PROMPT MAESTRO V49
+            const prompt = `
+            Actúa como un NUTRICIONISTA DEPORTIVO para un atleta de nivel ${levelLabel}.
+            
+            1. PERFIL:
+            - Deporte: ${sport.toUpperCase()}
+            - Nivel: ${levelLabel}
+            - Estrategia Nivel: ${levelInstruction}
+            
+            2. CONOCIMIENTO TÉCNICO:
+            ${sportKnowledge}
+
+            3. MISIÓN:
+            - Analiza los macros de: "${base}".
+            - Detecta el CONTEXTO (¿Desayuno, Comida, Cena?).
+            - Genera 5 opciones que CLAVEN los macros (+/- 20 kcal).
+            
+            4. REGLAS:
+            - Si es PRO: Sé estricto con la calidad y el timing.
+            - Si es AMATEUR: Sé flexible y busca disfrute.
+            - Ajusta GRAMOS exactos. No redondees.
+            
+            5. ${promptContext}
+
+            6. FORMATO JSON OBLIGATORIO:
             {
                "base": { "name": "Resumen Base", "kcal": 0, "p": 0, "c": 0, "f": 0 },
                "recipes": [ {"name":"...","ingred":"...","recipe":"...","p":0,"c":0,"f":0,"kcal":0}, ... ]
@@ -488,8 +541,7 @@
                     body: JSON.stringify({
                         messages: [{ role: "user", content: prompt }],
                         model: "llama-3.3-70b-versatile",
-                        // TEMPERATURA BAJA PARA PRECISIÓN MATEMÁTICA
-                        temperature: 0.2,
+                        temperature: 0.3,
                         response_format: { type: "json_object" }
                     })
                 });
@@ -506,22 +558,20 @@
 
                 resDiv.innerHTML = "";
 
-                // 1. RENDERIZAR LA BASE (EL OBJETIVO)
                 if (parsedData.base) {
                     const b = parsedData.base;
                     resDiv.innerHTML += `
                     <div class="base-card">
-                        <strong style="color:#888; font-size:0.8rem; text-transform:uppercase;">OBJETIVO (TU COMIDA BASE)</strong>
+                        <strong style="color:#888; font-size:0.8rem; text-transform:uppercase;">OBJETIVO (${sport.toUpperCase()} - ${levelLabel})</strong>
                         <div style="font-size:1.1rem; font-weight:900; color:#fff; margin-top:5px;">${b.name || base}</div>
                         <div class="meal-macros" style="margin-top:10px; background:#222; border-color:#444; color:#fff;">
                             🎯 ${b.kcal} kcal | P:${b.p} C:${b.c} G:${b.f}
                         </div>
                     </div>
-                    <div style="text-align:center; color:#666; font-size:0.7rem; margin-bottom:15px; letter-spacing:1px;">⬇️ OPCIONES AJUSTADAS AL GRAMO ⬇️</div>
+                    <div style="text-align:center; color:#666; font-size:0.7rem; margin-bottom:15px; letter-spacing:1px;">⬇️ ESTRATEGIA CIENTÍFICA ⬇️</div>
                     `;
                 }
 
-                // 2. RENDERIZAR OPCIONES
                 let optionsList = [];
                 if (Array.isArray(parsedData)) optionsList = parsedData;
                 else if (parsedData.recipes) optionsList = parsedData.recipes;
