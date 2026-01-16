@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VLUX | Nutrition AI</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* --- ESTILOS GENERALES --- */
+        :root { --bg: #050505; --app-bg: #000; --card: #121212; --input: #1E1E1E; --text: #FFF; --neon: #CCFF00; --danger: #FF4444; --radius: 12px; }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg);
+            background-image: radial-gradient(circle at 50% 50%, #111 0%, #000 80%);
+            color: var(--text); 
+            margin: 0; padding: 0; 
+            min-height: 100vh;
+            display: flex; justify-content: center;
+        }
+
+        .app-container {
+            width: 100%; max-width: 500px;
+            background: var(--app-bg);
+            min-height: 100vh;
+            padding: 15px; padding-bottom: 90px;
+            position: relative; box-sizing: border-box;
+            display: flex; flex-direction: column;
+        }
+
+        @media (min-width: 501px) {
+            .app-container { border-left: 1px solid #222; border-right: 1px solid #222; box-shadow: 0 0 60px rgba(204, 255, 0, 0.05); }
+        }
+
+        .hidden { display: none !important; }
+        .neon { color: var(--neon); }
+
+        /* PORTADA VLUX NEÓN (ORIGINAL) */
+        #landing-page {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--app-bg); z-index: 10000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 20px; transition: opacity 0.5s ease; box-sizing: border-box;
+        }
+        .mega-title { 
+            font-size: 5rem; font-weight: 900; color: var(--neon); margin: 0; 
+            letter-spacing: -3px; text-shadow: 0 0 40px rgba(204,255,0,0.4); line-height: 1; 
+        }
+        .tagline { font-size: 1rem; color: #fff; margin-top: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; max-width: 80%; line-height: 1.4; }
+        .btn-enter { margin-top: 60px; padding: 15px 50px; background: transparent; border: 2px solid var(--neon); color: var(--neon); font-weight: 900; border-radius: 50px; cursor: pointer; transition: 0.2s; font-size: 1rem; letter-spacing: 3px; }
+        .btn-enter:hover { background: var(--neon); color: black; box-shadow: 0 0 30px var(--neon); transform: scale(1.05); }
+
+        /* UI */
+        h1 { font-weight: 900; text-transform: uppercase; font-size: 1.5rem; margin-bottom: 15px; letter-spacing: -1px; }
+        .card { background: var(--card); padding: 15px; border-radius: var(--radius); border: 1px solid #222; margin-bottom: 15px; }
+        
+        label { font-size: 0.7rem; color: #888; font-weight: 700; display: block; margin-bottom: 3px; text-transform: uppercase; }
+        input, select, textarea { width: 100%; padding: 10px; margin-bottom: 10px; background: var(--input); border: 1px solid #333; border-radius: 8px; color: white; font-family: inherit; box-sizing: border-box; font-size: 0.95rem; -webkit-appearance: none; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--neon); }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; margin-top: 5px; font-size: 0.9rem; }
+        .btn-primary { background: var(--neon); color: black; box-shadow: 0 4px 15px rgba(204,255,0,0.15); transition: 0.2s; }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-outline { background: transparent; border: 1px solid #555; color: white; transition:0.2s; }
+        .btn-outline:hover { border-color: var(--neon); color: var(--neon); }
+
+        /* INPUTS MODERNOS (DASHBOARD) */
+        .targets-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 15px; }
+        .target-box { background: #161616; padding: 8px 2px; border-radius: 8px; text-align: center; border: 1px solid #2a2a2a; }
+        .target-val-input { width: 100%; background: transparent; border: none; color: var(--neon); font-weight: 900; font-size: 1.1rem; text-align: center; padding: 0; margin: 0; letter-spacing: -0.5px; }
+        .target-val-input::placeholder { color: #333; }
+        .target-label { font-size: 0.55rem; color: #666; text-transform: uppercase; font-weight: 700; margin-top: 2px; display:block; }
+
+        .grid-compact { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+        
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+
+        /* CONTROLES GRAFICA */
+        .chart-controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .chart-btn { background: #222; border: 1px solid #333; color: #666; padding: 5px 15px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        .chart-btn.active { background: var(--neon); color: black; border-color: var(--neon); }
+
+        /* EXTRAS */
+        .flavor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
+        .btn-flavor { background: #222; color: #888; border: 1px solid #333; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; transition: 0.3s; text-transform: uppercase; font-size: 0.9rem; }
+        .btn-flavor.selected { background: var(--neon) !important; color: black !important; border-color: var(--neon) !important; box-shadow: 0 0 15px rgba(204,255,0,0.3); }
+
+        .day-header { background: #1a1a1a; padding: 12px; border-radius: 10px 10px 0 0; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .day-tracker { padding: 8px; background: #111; border-bottom: 1px solid #222; display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; font-size: 0.65rem; }
+        .tracker-item { text-align: center; }
+        .tracker-val { color: #fff; font-weight: 600; display: block; margin-bottom: 2px; }
+        .tracker-bar { width: 100%; height: 3px; background: #333; border-radius: 2px; overflow: hidden; }
+        .tracker-fill { height: 100%; background: var(--neon); border-radius: 2px; }
+        .over-limit { color: var(--danger) !important; }
+        .bg-over { background: var(--danger) !important; }
+
+        .meal-item { padding: 12px; border-bottom: 1px solid #222; position: relative; }
+        .option-card { border-left: 4px solid var(--neon); padding: 15px; background: #161616; border-radius: 8px; margin-bottom: 10px; border: 1px solid #222; }
+        .meal-macros { font-size: 0.75rem; color: #888; margin-top: 6px; background: #0a0a0a; display: inline-block; padding: 4px 8px; border-radius: 6px; border: 1px solid #222; }
+        details { margin-top: 10px; border-top: 1px solid #222; padding-top: 8px; }
+        summary { cursor: pointer; font-size: 0.8rem; color: var(--neon); font-weight: bold; list-style: none; outline: none; }
+        
+        #auth-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 5000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;}
+        .auth-logo { font-size: 3rem; font-weight: 900; color: var(--neon); margin-bottom: 30px; letter-spacing: -2px; }
+        .error-msg { color: var(--danger); font-size: 0.8rem; margin-top: 10px; display: none; text-align: center; background: rgba(255,68,68,0.1); padding: 10px; border-radius: 8px; width: 100%; }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 6000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal-box { background: #1a1a1a; padding: 20px; border-radius: 15px; width: 85%; max-width: 350px; border: 1px solid #333; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 500px; background: rgba(10,10,10,0.95); border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 10px 0; z-index: 100; backdrop-filter: blur(10px); }
+        .nav-item { background: none; border: none; font-size: 1.4rem; opacity: 0.5; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: 0.2s; }
+        .nav-item.active { opacity: 1; color: var(--neon); transform: translateY(-2px); }
+        .nav-item span { font-size: 0.6rem; margin-top: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        #global-loader { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:20000; display:none; align-items:center; justify-content:center; flex-direction:column; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #222; border-top-color: var(--neon); border-radius: 50%; animation: spin 0.8s infinite linear; }
+        #loader-text { margin-top: 20px; color: var(--neon); font-size: 0.9rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <div id="landing-page">
+        <h1 class="mega-title">VLUX</h1>
+        <p class="tagline">LA APP QUE NO LE GUSTA A TU NUTRI</p>
+        <button class="btn-enter" onclick="app.enterApp()">ENTRAR</button>
+    </div>
+
+    <div id="global-loader"><div class="spinner"></div><div id="loader-text">Cargando...</div></div>
+
+    <div id="auth-screen" class="hidden">
+        <div class="auth-logo">VLUX</div>
+        <div class="card" style="width: 100%; max-width: 350px;">
+            <h2 id="auth-title" style="margin-top:0; text-align:center;">INICIAR SESIÓN</h2>
+            <input type="email" id="auth-email" placeholder="Correo electrónico">
+            <input type="password" id="auth-pass" placeholder="Contraseña">
+            <p id="auth-error" class="error-msg"></p>
+            <button class="btn btn-primary" onclick="app.authAction()">ENTRAR</button>
+            <button class="btn btn-outline" onclick="app.toggleAuthMode()" id="auth-switch">¿Nuevo? Crea cuenta</button>
+        </div>
+        <p style="color:#333; font-size:0.65rem; margin-top:30px; text-align:center; text-transform:uppercase; letter-spacing:1px;">Powered by Groq™ AI</p>
+    </div>
+
+    <div class="hidden" id="app-content">
+        <div class="header-bar">
+            <span style="font-size:0.85rem; color:#888;">Hola, <span id="userEmailDisplay" class="neon" style="font-weight:800;">Atleta</span></span>
+            <span style="font-size:0.8rem; color:#555; text-decoration:none; cursor:pointer; font-weight:600;" onclick="app.logout()">Salir ➔</span>
+        </div>
+
+        <div id="tab-perfil" class="tab-content active">
+            <h1>MI <span class="neon">PERFIL</span></h1>
+            <div class="targets-dashboard">
+                <div class="target-box">
+                    <input type="number" id="inpKcal" class="target-val-input" placeholder="0">
+                    <span class="target-label">Kcal</span>
+                </div>
+                <div class="target-box">
+                    <input type="number" id="inpP" class="target-val-input" style="color:#FF4444" placeholder="0">
+                    <span class="target-label">Prot</span>
+                </div>
+                <div class="target-box">
+                    <input type="number" id="inpC" class="target-val-input" style="color:#4444FF" placeholder="0">
+                    <span class="target-label">Carb</span>
+                </div>
+                <div class="target-box">
+                    <input type="number" id="inpF" class="target-val-input" style="color:#FFFF44" placeholder="0">
+                    <span class="target-label">Grasa</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div><label>Nombre</label><input type="text" id="pName" placeholder="Tu nombre"></div>
+                <div class="grid-compact">
+                    <div><label>Edad</label><input type="number" id="pAge"></div>
+                    <div><label>Peso (kg)</label><input type="number" id="pWeight"></div>
+                    <div><label>Altura (cm)</label><input type="number" id="pHeight"></div>
+                    <div><label>Sexo</label><select id="pSex"><option>Hombre</option><option>Mujer</option></select></div>
+                </div>
+                <div class="grid-compact" style="margin-top:5px;">
+                    <div style="grid-column: span 2;">
+                        <label>Deporte</label>
+                        <select id="pSport">
+                            <option value="Crossfit">Crossfit</option><option value="Hyrox">Hyrox</option><option value="Culturismo">Culturismo</option><option value="Running">Running</option><option value="Futbol">Fútbol</option><option value="Ciclismo">Ciclismo</option><option value="Natacion">Natación</option><option value="Sedentario">Sedentario</option>
+                        </select>
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label>Actividad</label>
+                        <select id="pActivity">
+                            <option value="1.2">Sedentario</option><option value="1.375">Ligero (1-3 días)</option><option value="1.55">Moderado (3-5 días)</option><option value="1.725">Activo (6-7 días)</option><option value="1.9">Atleta PRO</option>
+                        </select>
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label>Objetivo</label>
+                        <select id="pGoal">
+                            <option value="Definicion">Definición (Bajar peso)</option>
+                            <option value="Mantenimiento">Mantenimiento</option>
+                            <option value="Volumen">Volumen (Ganancia muscular)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="action-grid">
+                    <button class="btn btn-outline" style="padding:12px; font-size:0.8rem;" onclick="app.calculateMacrosOnly()">🔄 CALCULAR</button>
+                    <button class="btn btn-primary" style="padding:12px; font-size:0.8rem;" onclick="app.saveProfile()">💾 GUARDAR</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-swap" class="tab-content hidden">
+            <h1>VLUX <span class="neon">SWAP</span></h1>
+            <div class="card" style="border-color: var(--neon); border-width: 2px;">
+                <label>1. COMIDA BASE (ORIGEN)</label>
+                <textarea id="swapInput" rows="3" placeholder="Ej: 200g Pollo, 100g Arroz..."></textarea>
+                <label>2. PREFERENCIA</label>
+                <div class="flavor-grid">
+                    <button class="btn-flavor" id="btnSalty" onclick="app.setFlavor('Salado')">🧂 SALADO</button>
+                    <button class="btn-flavor" id="btnSweet" onclick="app.setFlavor('Dulce')">🍰 DULCE</button>
+                </div>
+                <button class="btn btn-primary" onclick="app.runSwap()">GENERAR 5 OPCIONES (GROQ⚡)</button>
+            </div>
+            <div id="swapResults"></div>
+        </div>
+
+        <div id="tab-menu" class="tab-content hidden">
+            <h1>MI <span class="neon">MENÚ</span></h1>
+            <div id="calendarGrid"></div>
+        </div>
+
+        <div id="tab-evo" class="tab-content hidden">
+            <h1>MI <span class="neon">EVO</span></h1>
+            <div class="card">
+                <div class="chart-controls">
+                    <button class="chart-btn active" id="btnChartWeight" onclick="app.switchChart('weight')">PESO</button>
+                    <button class="chart-btn" id="btnChartBody" onclick="app.switchChart('body')">MEDIDAS</button>
+                </div>
+                <canvas id="weightChart"></canvas>
+            </div>
+            <div class="card">
+                <label>REGISTRO DIARIO</label>
+                <div class="grid-compact" style="margin-bottom:15px;">
+                    <input type="date" id="evoDate">
+                    <input type="number" id="evoWeight" placeholder="Peso (Kg)">
+                </div>
+                
+                <label style="margin-top:10px; color:var(--neon);">MEDIDAS (Opcional - cm)</label>
+                <div class="targets-dashboard grid-3">
+                    <div class="target-box"><input type="number" id="evoChest" class="target-val-input" placeholder="-"><span class="target-label">Pecho</span></div>
+                    <div class="target-box"><input type="number" id="evoWaist" class="target-val-input" placeholder="-"><span class="target-label">Cintura</span></div>
+                    <div class="target-box"><input type="number" id="evoHip" class="target-val-input" placeholder="-"><span class="target-label">Cadera</span></div>
+                    <div class="target-box"><input type="number" id="evoThigh" class="target-val-input" placeholder="-"><span class="target-label">Muslo</span></div>
+                    <div class="target-box"><input type="number" id="evoArm" class="target-val-input" placeholder="-"><span class="target-label">Brazo</span></div>
+                </div>
+
+                <button class="btn btn-primary" onclick="app.addEvo()">REGISTRAR TODO</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav hidden" id="mainNav">
+        <button class="nav-item active" onclick="app.nav('tab-perfil', this)">👤<span>Perfil</span></button>
+        <button class="nav-item" onclick="app.nav('tab-swap', this)">⚡<span>Swap</span></button>
+        <button class="nav-item" onclick="app.nav('tab-menu', this)">📅<span>Menú</span></button>
+        <button class="nav-item" onclick="app.nav('tab-evo', this)">📈<span>Evo</span></button>
+    </nav>
+
+</div>
+
+<div id="addModal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-title">AÑADIR AL CALENDARIO</div>
+        <p id="modalDishName" style="color:#ccc; font-size:0.9rem; margin-bottom:15px;"></p>
+        <label>Día</label>
+        <select id="modalDay"><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option><option>Domingo</option></select>
+        <label>Momento</label>
+        <select id="modalMeal"><option>Desayuno</option><option>Media Mañana</option><option>Comida</option><option>Merienda</option><option>Cena</option></select>
+        <div class="grid-2" style="margin-top:20px;">
+            <button class="btn btn-outline" style="margin-top:0;" onclick="app.closeModal()">CANCELAR</button>
+            <button class="btn btn-primary" style="margin-top:0;" onclick="app.confirmAddToMenu()">GUARDAR</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const GROQ_API_KEY = "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"; 
+    const firebaseConfig = {
+      apiKey: "AIzaSyA03umG7UyjrhkugUr5b_OxcKhpd_iqiu0", 
+      authDomain: "vlux-4a423.firebaseapp.com",
+      projectId: "vlux-4a423",
+      storageBucket: "vlux-4a423.firebasestorage.app",
+      messagingSenderId: "90692910962",
+      appId: "1:90692910962:web:0f9b1df7ac834d2d26a7eb"
+    };
+
+    let authService, dbService;
+    try {
+        firebase.initializeApp(firebaseConfig);
+        authService = firebase.auth();
+        dbService = firebase.firestore();
+    } catch(e) { console.error(e); }
+
+    const app = {
+        user: null,
+        data: {
+            profile: { name:"", age:"", weight:"", height:"", sex:"Hombre", goal:"Mantenimiento", sport:"Crossfit", activity:"1.55", targets:{kcal:2000, p:150, c:200, f:60} },
+            menu: { Lunes:[], Martes:[], Miércoles:[], Jueves:[], Viernes:[], Sábado:[], Domingo:[] }, evolution: []
+        },
+        isLoginMode: true, flavor: 'Salado', tempOptions: [], selectedOptionIndex: null,
+        chartMode: 'weight', // 'weight' or 'body'
+
+        init: function() {
+            this.setFlavor('Salado');
+            document.getElementById('evoDate').valueAsDate = new Date();
+            if(authService) authService.onAuthStateChanged(u => { this.user = u; });
+        },
+
+        enterApp: function() {
+            document.getElementById('landing-page').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('landing-page').classList.add('hidden');
+                if (this.user) this.showApp(); else document.getElementById('auth-screen').classList.remove('hidden');
+            }, 500);
+        },
+
+        showApp: function() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-content').classList.remove('hidden');
+            document.getElementById('mainNav').classList.remove('hidden');
+            if(this.user) document.getElementById('userEmailDisplay').innerText = this.user.email.split('@')[0];
+            this.loadData();
+        },
+
+        // --- CALCULOS ---
+        calculateMacrosOnly: function() {
+            const p = this.data.profile;
+            p.name = document.getElementById('pName').value;
+            p.age = parseFloat(document.getElementById('pAge').value)||0;
+            p.weight = parseFloat(document.getElementById('pWeight').value)||0;
+            p.height = parseFloat(document.getElementById('pHeight').value)||0;
+            p.sex = document.getElementById('pSex').value;
+            p.sport = document.getElementById('pSport').value;
+            p.activity = parseFloat(document.getElementById('pActivity').value);
+            p.goal = document.getElementById('pGoal').value;
+
+            if(!p.weight || !p.height || !p.age) return alert("Faltan datos para calcular");
+
+            let tmb = (p.sex === 'Hombre') 
+                ? 88.362 + (13.397*p.weight) + (4.799*p.height) - (5.677*p.age)
+                : 447.593 + (9.247*p.weight) + (3.098*p.height) - (4.330*p.age);
+            
+            let tdee = tmb * p.activity;
+            if(p.goal==='Definicion') tdee -= 400;
+            if(p.goal==='Volumen') tdee += 300;
+
+            let pP=0, pC=0, pF=0;
+            switch(p.sport) {
+                case 'Culturismo':
+                    if(p.goal === 'Definicion') { pP=0.40; pC=0.30; pF=0.30; }
+                    else if(p.goal === 'Volumen') { pP=0.30; pC=0.50; pF=0.20; }
+                    else { pP=0.30; pC=0.40; pF=0.30; }
+                    break;
+                case 'Crossfit': pP=0.20; pC=0.50; pF=0.30; break;
+                case 'Ciclismo': pP=0.20; pC=0.55; pF=0.25; break;
+                case 'Running': pP=0.20; pC=0.60; pF=0.20; break;
+                case 'Hyrox': pP=0.25; pC=0.50; pF=0.25; break;
+                case 'Futbol': pP=0.20; pC=0.55; pF=0.25; break;
+                case 'Natacion': pP=0.20; pC=0.50; pF=0.30; break;
+                default: pP=0.20; pC=0.45; pF=0.35;
+            }
+
+            document.getElementById('inpKcal').value = Math.round(tdee);
+            document.getElementById('inpP').value = Math.round((tdee * pP) / 4);
+            document.getElementById('inpC').value = Math.round((tdee * pC) / 4);
+            document.getElementById('inpF').value = Math.round((tdee * pF) / 9);
+            
+            alert("✅ Cálculo realizado. Pulsa GUARDAR para confirmar.");
+        },
+
+        saveProfile: function() {
+            const p = this.data.profile;
+            p.name = document.getElementById('pName').value;
+            p.age = parseFloat(document.getElementById('pAge').value)||0;
+            p.weight = parseFloat(document.getElementById('pWeight').value)||0;
+            p.height = parseFloat(document.getElementById('pHeight').value)||0;
+            p.sex = document.getElementById('pSex').value;
+            p.sport = document.getElementById('pSport').value;
+            p.activity = parseFloat(document.getElementById('pActivity').value);
+            p.goal = document.getElementById('pGoal').value;
+
+            p.targets = {
+                kcal: parseFloat(document.getElementById('inpKcal').value) || 0,
+                p: parseFloat(document.getElementById('inpP').value) || 0,
+                c: parseFloat(document.getElementById('inpC').value) || 0,
+                f: parseFloat(document.getElementById('inpF').value) || 0
+            };
+
+            this.saveData();
+            this.renderAll(); 
+            alert("✅ Perfil Guardado");
+        },
+
+        runSwap: async function() {
+            const base = document.getElementById('swapInput').value;
+            const resDiv = document.getElementById('swapResults');
+            if(!base) return alert("Escribe una comida base.");
+
+            resDiv.innerHTML = `<div style="text-align:center; padding:30px; color:#888;"><span class="spinner"></span><br>Chef ${this.flavor} diseñando...</div>`;
+
+            let promptContext = "";
+            if (this.flavor === "Dulce") {
+                promptContext = `MODO: REPOSTERÍA FIT / DULCE. INGREDIENTES: Avena, Harina arroz, Proteína Whey, Claras, Yogur, Fruta, Miel, Cacao. PROHIBIDO: Carne, Pescado, Verdura salada. TIPO: Tortitas, Gachas, Mousse, Mug Cake.`;
+            } else {
+                promptContext = `MODO: COCINA SALADA. INGREDIENTES: Pollo, Ternera, Pescado, Huevos, Pasta, Arroz, Patata, Legumbres. TIPO: Guisos, Plancha, Wok, Tacos.`;
+            }
+
+            const prompt = `Actúa como un CHEF EXPERTO. Objetivo: Reemplazar "${base}" por 5 opciones TOTALMENTE DIFERENTES pero con MISMOS MACROS totales (+/- 5g). ${promptContext} REGLAS: 1. NO REPITAS el ingrediente principal de la base. 2. Pesos en CRUDO. 3. INCLUYE RECETA BREVE. FORMATO JSON: [{"name":"Nombre","ingred":"Lista ingredientes con gr","recipe":"Paso 1...","p":0,"c":0,"f":0,"kcal":0}]`;
+
+            try {
+                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        messages: [{ role: "user", content: prompt }],
+                        model: "llama-3.3-70b-versatile",
+                        temperature: 0.7,
+                        response_format: { type: "json_object" }
+                    })
+                });
+
+                if(!response.ok) throw new Error("Error Groq API");
+                const json = await response.json();
+                let content = json.choices[0].message.content;
+                if(content.includes("```json")) content = content.split("```json")[1].split("```")[0];
+                
+                let parsedData = JSON.parse(content);
+                if(!Array.isArray(parsedData)) {
+                    if(parsedData.options) parsedData = parsedData.options;
+                    else if(parsedData.recipes) parsedData = parsedData.recipes;
+                    else parsedData = Object.values(parsedData)[0];
+                }
+                this.tempOptions = parsedData;
+                
+                resDiv.innerHTML = "";
+                this.tempOptions.forEach((opt, i) => {
+                    resDiv.innerHTML += `<div class="option-card">
+                        <strong style="color:var(--neon); font-size:1.1rem;">${i+1}. ${opt.name}</strong><br>
+                        <div style="margin:5px 0; color:#ddd; font-size:0.9rem;">${opt.ingred}</div>
+                        <details><summary>👨‍🍳 VER RECETA</summary><div class="recipe-text">${opt.recipe}</div></details>
+                        <div class="meal-macros" style="margin-top:10px;">🔥${opt.kcal} | P:${opt.p} C:${opt.c} G:${opt.f}</div>
+                        <button class="btn btn-outline" style="padding:8px; font-size:0.8rem; margin-top:10px;" onclick="app.openModal(${i})">📅 AÑADIR</button>
+                    </div>`;
+                });
+            } catch(e) { 
+                console.error(e);
+                resDiv.innerHTML = `<p style="color:var(--danger); text-align:center;">Error: ${e.message}</p>`; 
+            }
+        },
+
+        toggleAuthMode: function() {
+            this.isLoginMode = !this.isLoginMode;
+            document.getElementById('auth-title').innerText = this.isLoginMode ? "INICIAR SESIÓN" : "CREAR CUENTA";
+            document.getElementById('auth-switch').innerText = this.isLoginMode ? "¿Nuevo? Crea cuenta" : "¿Tienes cuenta? Entra";
+            document.querySelector('#auth-screen .btn-primary').innerText = this.isLoginMode ? "ENTRAR" : "REGISTRARSE";
+            document.getElementById('auth-error').style.display = 'none';
+        },
+        
+        authAction: async function() {
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-pass').value;
+            if(!email || !pass) return;
+            this.loading(true, "Conectando...");
+            try {
+                if(this.isLoginMode) {
+                    await authService.signInWithEmailAndPassword(email, pass);
+                } else {
+                    const userCred = await authService.createUserWithEmailAndPassword(email, pass);
+                    this.user = userCred.user;
+                    await dbService.collection('users').doc(this.user.uid).set(this.data);
+                    this.showApp();
+                }
+                this.showApp();
+            } catch(e) {
+                let msg = e.message;
+                if(e.code === 'auth/weak-password') msg = "Contraseña débil.";
+                if(e.code === 'auth/email-already-in-use') msg = "Email ya registrado.";
+                document.getElementById('auth-error').innerText = msg;
+                document.getElementById('auth-error').style.display = 'block';
+            }
+            this.loading(false);
+        },
+        
+        logout: function() { authService.signOut(); location.reload(); },
+        loadData: async function() {
+            if(!this.user) return;
+            this.loading(true, "Sincronizando...");
+            try {
+                const doc = await dbService.collection('users').doc(this.user.uid).get();
+                if(doc.exists) {
+                    this.data = { ...this.data, ...doc.data() };
+                    if(!this.data.menu) this.data.menu={Lunes:[],Martes:[],Miércoles:[],Jueves:[],Viernes:[],Sábado:[],Domingo:[]};
+                    if(!this.data.evolution) this.data.evolution=[];
+                    ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"].forEach(d => { if(!this.data.menu[d]) this.data.menu[d]=[]; });
+                    this.renderAll();
+                }
+            } catch(e) { console.error(e); }
+            this.loading(false);
+        },
+        saveData: async function() { if(this.user) await dbService.collection('users').doc(this.user.uid).set(this.data); },
+
+        renderAll: function() {
+            const p = this.data.profile;
+            document.getElementById('pName').value = p.name || "";
+            document.getElementById('pAge').value = p.age || "";
+            document.getElementById('pWeight').value = p.weight || "";
+            document.getElementById('pHeight').value = p.height || "";
+            document.getElementById('pSex').value = p.sex || "Hombre";
+            document.getElementById('pSport').value = p.sport || "Crossfit";
+            document.getElementById('pActivity').value = p.activity || "1.55";
+            document.getElementById('pGoal').value = p.goal || "Mantenimiento";
+            
+            const t = p.targets || {kcal:0, p:0, c:0, f:0};
+            document.getElementById('inpKcal').value = t.kcal;
+            document.getElementById('inpP').value = t.p;
+            document.getElementById('inpC').value = t.c;
+            document.getElementById('inpF').value = t.f;
+
+            this.renderMenu(); this.renderChart();
+        },
+        
+        setFlavor: function(f) {
+            this.flavor = f;
+            const btnS = document.getElementById('btnSalty');
+            const btnSw = document.getElementById('btnSweet');
+            btnS.classList.remove('selected');
+            btnSw.classList.remove('selected');
+            if(f === 'Salado') btnS.classList.add('selected');
+            else btnSw.classList.add('selected');
+        },
+
+        openModal: function(i) {
+            this.selectedOptionIndex = i;
+            document.getElementById('modalDishName').innerText = this.tempOptions[i].name;
+            document.getElementById('addModal').classList.remove('hidden');
+        },
+        closeModal: function() { document.getElementById('addModal').classList.add('hidden'); },
+        confirmAddToMenu: function() {
+            const opt = this.tempOptions[this.selectedOptionIndex];
+            const day = document.getElementById('modalDay').value;
+            const meal = document.getElementById('modalMeal').value;
+            if(!this.data.menu[day]) this.data.menu[day] = [];
+            this.data.menu[day].push({ ...opt, type:meal });
+            this.saveData(); this.renderMenu(); this.closeModal(); alert("✅ Añadido");
+        },
+        
+        renderMenu: function() {
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = "";
+            const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+            const t = this.data.profile.targets || {kcal:2000, p:150, c:200, f:60};
+
+            days.forEach(d => {
+                const meals = this.data.menu[d] || [];
+                let curK=0, curP=0, curC=0, curF=0;
+                meals.forEach(m => { curK+=m.kcal; curP+=m.p; curC+=m.c; curF+=m.f; });
+
+                const pctK = Math.min((curK/t.kcal)*100, 100);
+                const pctP = Math.min((curP/t.p)*100, 100);
+                const pctC = Math.min((curC/t.c)*100, 100);
+                const pctF = Math.min((curF/t.f)*100, 100);
+
+                let html = `
+                <div class="card" style="padding:0; overflow:hidden;">
+                    <div class="day-header"><span class="neon" style="font-weight:900;">${d}</span> <span style="font-size:0.7rem; color:#888;">${meals.length} comidas</span></div>
+                    
+                    <div class="day-tracker">
+                        <div class="tracker-item">
+                            <span class="tracker-val ${curK>t.kcal?'over-limit':''}">${Math.round(curK)} / ${t.kcal}</span>
+                            <div class="tracker-bar"><div class="tracker-fill ${curK>t.kcal?'bg-over':''}" style="width:${pctK}%"></div></div>
+                            <span style="font-size:0.6rem; color:#666; display:block; margin-top:2px;">KCAL</span>
+                        </div>
+                        <div class="tracker-item">
+                            <span class="tracker-val ${curP>t.p?'over-limit':''}">${Math.round(curP)} / ${t.p}</span>
+                            <div class="tracker-bar"><div class="tracker-fill ${curP>t.p?'bg-over':''}" style="width:${pctP}%; background-color:#FF4444;"></div></div>
+                            <span style="font-size:0.6rem; color:#666; display:block; margin-top:2px;">PROT</span>
+                        </div>
+                        <div class="tracker-item">
+                            <span class="tracker-val ${curC>t.c?'over-limit':''}">${Math.round(curC)} / ${t.c}</span>
+                            <div class="tracker-bar"><div class="tracker-fill ${curC>t.c?'bg-over':''}" style="width:${pctC}%; background-color:#4444FF;"></div></div>
+                            <span style="font-size:0.6rem; color:#666; display:block; margin-top:2px;">CARB</span>
+                        </div>
+                        <div class="tracker-item">
+                            <span class="tracker-val ${curF>t.f?'over-limit':''}">${Math.round(curF)} / ${t.f}</span>
+                            <div class="tracker-bar"><div class="tracker-fill ${curF>t.f?'bg-over':''}" style="width:${pctF}%; background-color:#FFFF44;"></div></div>
+                            <span style="font-size:0.6rem; color:#666; display:block; margin-top:2px;">GRASA</span>
+                        </div>
+                    </div>
+                `;
+                
+                if(meals.length===0) html+=`<div style="padding:20px; color:#444; font-size:0.8rem; text-align:center;">Día vacío. Añade desde Swap.</div>`;
+                
+                meals.forEach((m, i) => {
+                    html += `<div class="meal-item">
+                        <div style="font-weight:800; font-size:0.8rem; color:#666; margin-bottom:4px;">${m.type.toUpperCase()} <span onclick="app.delMeal('${d}',${i})" style="float:right; color:var(--danger); cursor:pointer;">×</span></div>
+                        <div style="font-size:0.95rem; font-weight:600;">${m.name}</div>
+                        <div class="meal-macros">${m.kcal} kcal | P:${m.p} C:${m.c} G:${m.f}</div>
+                    </div>`;
+                });
+                grid.innerHTML += html + "</div>";
+            });
+        },
+
+        delMeal: function(d, i) { if(confirm("¿Borrar?")) { this.data.menu[d].splice(i, 1); this.saveData(); this.renderMenu(); } },
+        
+        // --- EVO & CHART LOGIC ---
+        switchChart: function(mode) {
+            this.chartMode = mode;
+            document.getElementById('btnChartWeight').classList.toggle('active', mode==='weight');
+            document.getElementById('btnChartBody').classList.toggle('active', mode==='body');
+            this.renderChart();
+        },
+
+        addEvo: function() {
+            const d = document.getElementById('evoDate').value;
+            const w = document.getElementById('evoWeight').value;
+            // Medidas opcionales
+            const chest = document.getElementById('evoChest').value || 0;
+            const waist = document.getElementById('evoWaist').value || 0;
+            const hip = document.getElementById('evoHip').value || 0;
+            const thigh = document.getElementById('evoThigh').value || 0;
+            const arm = document.getElementById('evoArm').value || 0;
+
+            if(d && w) { 
+                this.data.evolution.push({ date:d, weight:w, chest, waist, hip, thigh, arm }); 
+                this.data.evolution.sort((a,b)=>new Date(a.date)-new Date(b.date)); 
+                this.saveData(); 
+                this.renderChart();
+                alert("✅ Registro guardado");
+            } else {
+                alert("Fecha y peso son obligatorios");
+            }
+        },
+
+        renderChart: function() {
+            const ctx = document.getElementById('weightChart').getContext('2d');
+            if(window.chart) window.chart.destroy();
+            
+            const labels = this.data.evolution.map(e=>e.date);
+            let datasets = [];
+
+            if(this.chartMode === 'weight') {
+                datasets.push({
+                    label: 'Peso (Kg)',
+                    data: this.data.evolution.map(e=>e.weight),
+                    borderColor: '#CCFF00', backgroundColor: 'rgba(204,255,0,0.1)', fill: true, tension: 0.3
+                });
+            } else {
+                // Medidas
+                datasets = [
+                    { label:'Pecho', data:this.data.evolution.map(e=>e.chest), borderColor:'#FF4444', borderDash:[5,5], tension:0.3 },
+                    { label:'Cintura', data:this.data.evolution.map(e=>e.waist), borderColor:'#4444FF', tension:0.3 },
+                    { label:'Cadera', data:this.data.evolution.map(e=>e.hip), borderColor:'#FFFF44', tension:0.3 },
+                    { label:'Muslo', data:this.data.evolution.map(e=>e.thigh), borderColor:'#00CCFF', tension:0.3 },
+                    { label:'Brazo', data:this.data.evolution.map(e=>e.arm), borderColor:'#FF00FF', tension:0.3 }
+                ];
+            }
+
+            window.chart = new Chart(ctx, { 
+                type:'line', 
+                data: { labels, datasets }, 
+                options: { 
+                    plugins:{ legend:{ display: (this.chartMode==='body'), labels:{color:'#888', boxWidth:10} } }, 
+                    scales:{ 
+                        x:{ display:false }, 
+                        y:{ grid:{ color:'#333' }, ticks:{ color:'#666' } } 
+                    } 
+                } 
+            });
+        },
+
+        nav: function(tab, btn) {
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.add('hidden'));
+            document.getElementById(tab).classList.remove('hidden');
+            document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+            btn.classList.add('active');
+        },
+        loading: function(show, text="Cargando...") { 
+            document.getElementById('loader-text').innerText = text;
+            document.getElementById('global-loader').style.display=show?'flex':'none'; 
+        }
+    };
+    window.onload = () => app.init();
+</script>
+</body>
+</html>
