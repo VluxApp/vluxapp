@@ -282,9 +282,10 @@
 </div>
 
 <script>
-    // TU API KEY CONFIGURADA:
+    // TU API KEY PERSONAL
     const GROQ_API_KEY = "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"; 
     
+    // TUS CREDENCIALES FIREBASE
     const firebaseConfig = {
       apiKey: "AIzaSyA03umG7UyjrhkugUr5b_OxcKhpd_iqiu0", 
       authDomain: "vlux-4a423.firebaseapp.com",
@@ -443,7 +444,7 @@
             this.saveData(); this.renderAll(); alert("✅ Perfil Guardado");
         },
 
-        // --- SWAP INTELLIGENCE (V40 UPDATED) ---
+        // --- SWAP INTELIGENTE V42 (FIX TOTAL) ---
         runSwap: async function() {
             const base = document.getElementById('swapInput').value;
             const resDiv = document.getElementById('swapResults');
@@ -458,15 +459,15 @@
                 promptContext = `MODO: SALADO. TIPO: Plato principal. INGREDIENTES: Carnes, Pescados, Arroz, Patata, Huevos, Legumbres.`;
             }
 
-            // NUEVO PROMPT MATEMÁTICO
+            // PROMPT BLINDADO
             const prompt = `
             Actúa como un NUTRICIONISTA MATEMÁTICO. Tu máxima prioridad es la PRECISIÓN NUMÉRICA.
             1. Analiza los macros y calorías de esta comida base: "${base}".
-            2. Genera 5 opciones de reemplazo que tengan EXACTAMENTE las mismas Calorías y Macros Totales (margen de error 5%).
+            2. Genera 5 opciones de reemplazo que tengan EXACTAMENTE las mismas Calorías y Macros Totales (+/- 10%).
             3. ${promptContext}
-            4. REGLA DE ORO: Si cambias un alimento magro (ej: pollo) por uno graso (ej: ternera), DEBES REDUCIR EL PESO para que la grasa total cuadre. NO MANTENGAS EL MISMO PESO SI LOS MACROS SON DIFERENTES.
-            5. Calcula los gramos exactos de cada ingrediente nuevo.
-            FORMATO JSON: [{"name":"Nombre Plato","ingred":"Lista con gramos exactos","recipe":"Receta breve","p":0,"c":0,"f":0,"kcal":0}]
+            4. REGLA DE ORO: Si cambias un alimento magro por uno graso, REDUCE EL PESO para que la grasa cuadre.
+            5. FORMATO JSON OBLIGATORIO: Devuelve un objeto con la clave "recipes". 
+            Ejemplo: { "recipes": [{"name":"...","ingred":"...","recipe":"...","p":0,"c":0,"f":0,"kcal":0}] }
             `;
 
             try {
@@ -486,15 +487,27 @@
                 let content = json.choices[0].message.content;
                 if(content.includes("```json")) content = content.split("```json")[1].split("```")[0];
                 
-                let parsedData = JSON.parse(content);
-                if(!Array.isArray(parsedData)) {
-                    if(parsedData.options) parsedData = parsedData.options;
-                    else if(parsedData.recipes) parsedData = parsedData.recipes;
-                    else parsedData = Object.values(parsedData)[0];
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(content);
+                } catch(e) { throw new Error("La IA devolvió un formato ilegible."); }
+
+                // --- DETECTOR INTELIGENTE DE LISTAS (EL ARREGLO) ---
+                if (Array.isArray(parsedData)) {
+                    this.tempOptions = parsedData;
+                } else if (parsedData.recipes && Array.isArray(parsedData.recipes)) {
+                    this.tempOptions = parsedData.recipes;
+                } else if (parsedData.options && Array.isArray(parsedData.options)) {
+                    this.tempOptions = parsedData.options;
+                } else {
+                    // Busca cualquier array dentro del objeto
+                    const possibleList = Object.values(parsedData).find(val => Array.isArray(val));
+                    this.tempOptions = possibleList || [parsedData];
                 }
-                this.tempOptions = parsedData;
                 
                 resDiv.innerHTML = "";
+                if (!this.tempOptions || this.tempOptions.length === 0) throw new Error("No se encontraron recetas válidas.");
+
                 this.tempOptions.forEach((opt, i) => {
                     resDiv.innerHTML += `<div class="option-card">
                         <strong style="color:var(--neon); font-size:1.1rem;">${i+1}. ${opt.name}</strong><br>
@@ -621,7 +634,7 @@
         },
         closeModal: function() { document.getElementById('addModal').classList.add('hidden'); },
 
-        // --- NEW SAFE SAVE FUNCTION (FIX V40) ---
+        // --- SAFE SAVE FUNCTION ---
         confirmAddToMenu: function() {
             try {
                 if (this.selectedOptionIndex === null || !this.tempOptions[this.selectedOptionIndex]) {
@@ -635,7 +648,6 @@
                 if (!this.data.menu) this.data.menu = {};
                 if (!this.data.menu[day]) this.data.menu[day] = [];
 
-                // LIMPIEZA DE DATOS (Vital para que no falle)
                 const safeMeal = {
                     name: opt.name || "Comida sin nombre",
                     recipe: opt.recipe || "Sin receta",
